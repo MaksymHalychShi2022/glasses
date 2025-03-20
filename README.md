@@ -7,7 +7,7 @@ This project uses a Convolutional Neural Network (CNN) to classify images of fac
 1. Clone this repository:
 
     ```bash
-    https://github.com/MaksymHalychShi2022/glasses.git
+    git clone https://github.com/MaksymHalychShi2022/glasses.git
     cd glasses
     ```
 
