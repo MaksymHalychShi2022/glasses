@@ -1,15 +1,14 @@
 import torch
-from torchvision import transforms
-from model import GlassesModel
+from torchvision import transforms, models
+from PIL import Image
 
 
 class GlassesModelInference:
-    def __init__(self, model_path: str = "best_model.pth", num_classes: int = 2, device: str = "cpu") -> None:
+    def __init__(self, model_path: str = "best_model.pth", device: str = "cpu") -> None:
         """
         Initialize the GlassesModelInference instance.
 
         :param model_path: Path to the trained model's state_dict file.
-        :param num_classes: Number of output classes for the model (default is 2).
         :param device: The device to run the model on ("cpu" or "cuda").
         """
         # Validate device input and set the device
@@ -18,8 +17,12 @@ class GlassesModelInference:
 
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
 
-        # Initialize the model
-        self.model = GlassesModel(num_classes=num_classes)
+        # Initialize the model (using ResNet18, as per your training code)
+        self.model = models.resnet18(pretrained=True)
+
+        # Modify the final layer for binary classification
+        num_ftrs = self.model.fc.in_features  # Number of input features for the final layer
+        self.model.fc = torch.nn.Linear(num_ftrs, 2)  # Change the output layer to have 2 classes (Glasses/No Glasses)
 
         # Load the model to the specified device
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
@@ -29,17 +32,17 @@ class GlassesModelInference:
         # Define the preprocessing transformations
         self.preprocess = transforms.Compose(
             [
-                transforms.Resize((256, 256)),  # Resize directly on the image
+                transforms.Resize((256, 256)),  # Resize the image
                 transforms.ToTensor(),  # Convert PIL image to tensor
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalize based on ImageNet stats
             ]
         )
 
-    def infer(self, frame: torch.Tensor) -> str:
+    def infer(self, frame: Image.Image) -> str:
         """
         Given a frame, preprocess it and make a prediction using the model.
 
-        :param frame: The input frame as a tensor or numpy array to process.
+        :param frame: The input frame as a PIL Image to process.
         :return: A string representing the predicted class label ("Glasses" or "No Glasses").
         """
         # Preprocess the frame
@@ -50,7 +53,7 @@ class GlassesModelInference:
         with torch.no_grad():
             output = self.model(input_batch)
 
-        # Get the predicted class (0 for 'no glasses', 1 for 'glasses')
+        # Get the predicted class (0 for 'No Glasses', 1 for 'Glasses')
         _, predicted = torch.max(output, 1)
         label = "Glasses" if predicted.item() == 1 else "No Glasses"
 
@@ -58,8 +61,6 @@ class GlassesModelInference:
 
 
 if __name__ == "__main__":
-    from PIL import Image
-
     image_path = "data/faces-spring-2020/faces-spring-2020/face-5000.png"
     image = Image.open(image_path).convert("RGB")
 
@@ -67,4 +68,4 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = GlassesModelInference(model_path="best_model.pth", device=device)
     label = model.infer(image)
-    print(f"image: {image_path}, label: {label}")
+    print(f"Image: {image_path}, Predicted Label: {label}")

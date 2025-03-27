@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
+from torchvision import models, transforms
 from dataset import GlassesDataset  # Import dataset class
-from model import GlassesModel  # Import the model class
 
 
 # Constants (hyperparameters)
@@ -90,10 +89,25 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
 
-    # Instantiate the model, loss function, and optimizer
-    model = GlassesModel(num_classes=2).to(device)
+    # Load a pretrained model (e.g., ResNet18)
+    model = models.resnet18(pretrained=True)
+
+    # Modify the final layer for binary classification
+    num_ftrs = model.fc.in_features  # Number of input features for the final layer
+    model.fc = nn.Linear(num_ftrs, 2)  # Change the output layer to have 2 classes (Glasses/No Glasses)
+
+    # Optionally, freeze the early layers
+    for param in model.parameters():
+        param.requires_grad = False
+    for param in model.fc.parameters():
+        param.requires_grad = True
+
+    # Move the model to the device
+    model = model.to(device)
+
+    # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.fc.parameters(), lr=LEARNING_RATE)  # Only optimize the final fully connected layer
 
     # Training loop
     best_val_accuracy = 0.0
